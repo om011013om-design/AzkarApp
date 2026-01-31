@@ -1,256 +1,171 @@
 import flet as ft
-import sqlite3
-import os
-
-# ==================== قاعدة البيانات ====================
-
-DB_NAME = "adhkar.db"
-
-def get_db_path():
-    try:
-        # للأندرويد
-        if hasattr(os, 'environ') and 'ANDROID_BOOTLOGO' in os.environ:
-            return f"/data/data/com.example.app/{DB_NAME}"
-        return DB_NAME
-    except:
-        return DB_NAME
-
-def init_db():
-    try:
-        conn = sqlite3.connect(DB_NAME)
-        c = conn.cursor()
-        
-        c.execute('''CREATE TABLE IF NOT EXISTS categories
-                     (id INTEGER PRIMARY KEY, name TEXT, icon TEXT, color TEXT)''')
-        
-        c.execute('''CREATE TABLE IF NOT EXISTS adhkar
-                     (id INTEGER PRIMARY KEY, cat_id INTEGER, text TEXT, 
-                      total INTEGER, current INTEGER, benefit TEXT)''')
-        
-        c.execute('''CREATE TABLE IF NOT EXISTS tasbih
-                     (id INTEGER PRIMARY KEY, name TEXT, count INTEGER, target INTEGER)''')
-        
-        c.execute('''CREATE TABLE IF NOT EXISTS settings
-                     (key TEXT PRIMARY KEY, value TEXT)''')
-        
-        # التحقق من وجود بيانات
-        c.execute("SELECT COUNT(*) FROM categories")
-        if c.fetchone()[0] == 0:
-            # إدخال الفئات
-            cats = [
-                (1, "أذكار الصباح", "sunny", "#10b981"),
-                (2, "أذكار المساء", "bedtime", "#6366f1"),
-                (3, "أذكار الصلاة", "favorite", "#f59e0b"),
-                (4, "أذكار النوم", "nights_stay", "#8b5cf6"),
-                (5, "أذكار متنوعة", "star", "#ec4899"),
-            ]
-            c.executemany("INSERT INTO categories VALUES (?,?,?,?)", cats)
-            
-            # إدخال الأذكار
-            adhkar_data = [
-                # أذكار الصباح
-                (1, 1, "أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ وَالْحَمْدُ لِلَّهِ", 1, 0, "ذكر الصباح"),
-                (2, 1, "اللَّهُمَّ بِكَ أَصْبَحْنَا وَبِكَ أَمْسَيْنَا وَبِكَ نَحْيَا وَبِكَ نَمُوتُ وَإِلَيْكَ النُّشُورُ", 1, 0, "رواه الترمذي"),
-                (3, 1, "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ", 100, 0, "مائة مرة"),
-                (4, 1, "لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ", 10, 0, "عشر مرات"),
-                (5, 1, "أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ", 3, 0, "ثلاث مرات"),
-                
-                # أذكار المساء
-                (6, 2, "أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ وَالْحَمْدُ لِلَّهِ", 1, 0, "ذكر المساء"),
-                (7, 2, "اللَّهُمَّ بِكَ أَمْسَيْنَا وَبِكَ أَصْبَحْنَا وَبِكَ نَحْيَا وَبِكَ نَمُوتُ وَإِلَيْكَ الْمَصِيرُ", 1, 0, "رواه الترمذي"),
-                (8, 2, "أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ", 3, 0, "ثلاث مرات"),
-                (9, 2, "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ", 100, 0, "مائة مرة"),
-                
-                # أذكار الصلاة
-                (10, 3, "أَسْتَغْفِرُ اللَّهَ أَسْتَغْفِرُ اللَّهَ أَسْتَغْفِرُ اللَّهَ", 3, 0, "بعد الصلاة"),
-                (11, 3, "سُبْحَانَ اللَّهِ", 33, 0, "بعد الصلاة"),
-                (12, 3, "الْحَمْدُ لِلَّهِ", 33, 0, "بعد الصلاة"),
-                (13, 3, "اللَّهُ أَكْبَرُ", 33, 0, "بعد الصلاة"),
-                
-                # أذكار النوم
-                (14, 4, "بِاسْمِكَ اللَّهُمَّ أَمُوتُ وَأَحْيَا", 1, 0, "عند النوم"),
-                (15, 4, "سُبْحَانَ اللَّهِ", 33, 0, "قبل النوم"),
-                (16, 4, "الْحَمْدُ لِلَّهِ", 33, 0, "قبل النوم"),
-                (17, 4, "اللَّهُ أَكْبَرُ", 34, 0, "قبل النوم"),
-                
-                # أذكار متنوعة
-                (18, 5, "لَا إِلَهَ إِلَّا اللَّهُ", 100, 0, "أفضل الذكر"),
-                (19, 5, "سُبْحَانَ اللَّهِ وَالْحَمْدُ لِلَّهِ وَلَا إِلَهَ إِلَّا اللَّهُ وَاللَّهُ أَكْبَرُ", 100, 0, "الباقيات الصالحات"),
-                (20, 5, "لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ", 100, 0, "كنز من الجنة"),
-            ]
-            c.executemany("INSERT INTO adhkar VALUES (?,?,?,?,?,?)", adhkar_data)
-            
-            # إدخال التسبيحات
-            tasbih_data = [
-                (1, "سُبْحَانَ اللَّهِ", 0, 33),
-                (2, "الْحَمْدُ لِلَّهِ", 0, 33),
-                (3, "اللَّهُ أَكْبَرُ", 0, 34),
-                (4, "لَا إِلَهَ إِلَّا اللَّهُ", 0, 100),
-                (5, "أَسْتَغْفِرُ اللَّهَ", 0, 100),
-            ]
-            c.executemany("INSERT INTO tasbih VALUES (?,?,?,?)", tasbih_data)
-            
-            # الإعدادات
-            c.execute("INSERT OR REPLACE INTO settings VALUES ('dark_mode', 'false')")
-            c.execute("INSERT OR REPLACE INTO settings VALUES ('font_size', '18')")
-        
-        conn.commit()
-        conn.close()
-        return True
-    except Exception as e:
-        print(f"DB Error: {e}")
-        return False
-
-def db_query(query, params=(), fetch=True):
-    try:
-        conn = sqlite3.connect(DB_NAME)
-        c = conn.cursor()
-        c.execute(query, params)
-        if fetch:
-            result = c.fetchall()
-        else:
-            conn.commit()
-            result = True
-        conn.close()
-        return result
-    except Exception as e:
-        print(f"Query Error: {e}")
-        return [] if fetch else False
-
-# ==================== التطبيق ====================
 
 def main(page: ft.Page):
     
-    # الألوان
-    GREEN = "#10b981"
-    DARK_GREEN = "#059669"
-    
-    # المتغيرات
-    dark_mode = False
-    font_size = 18
-    current_page = "home"
-    
-    # إعداد الصفحة
+    # إعدادات أساسية
     page.title = "حصن المسلم"
     page.rtl = True
     page.padding = 0
     page.theme_mode = ft.ThemeMode.LIGHT
+    page.bgcolor = "#f5f5f5"
     
-    # تهيئة قاعدة البيانات
-    init_db()
+    # الألوان
+    GREEN = "#10b981"
     
-    # تحميل الإعدادات
-    try:
-        result = db_query("SELECT value FROM settings WHERE key='dark_mode'")
-        if result:
-            dark_mode = result[0][0] == "true"
-            page.theme_mode = ft.ThemeMode.DARK if dark_mode else ft.ThemeMode.LIGHT
-        
-        result = db_query("SELECT value FROM settings WHERE key='font_size'")
-        if result:
-            font_size = int(result[0][0])
-    except:
-        pass
+    # البيانات مباشرة في الكود
+    categories_data = [
+        {"id": 1, "name": "أذكار الصباح", "icon": "sunny", "color": "#10b981"},
+        {"id": 2, "name": "أذكار المساء", "icon": "nights_stay", "color": "#6366f1"},
+        {"id": 3, "name": "أذكار الصلاة", "icon": "favorite", "color": "#f59e0b"},
+        {"id": 4, "name": "أذكار النوم", "icon": "bedtime", "color": "#8b5cf6"},
+        {"id": 5, "name": "أذكار متنوعة", "icon": "star", "color": "#ec4899"},
+    ]
     
-    def get_colors():
-        if dark_mode:
-            return {"bg": "#1e1e2e", "card": "#2d2d3f", "text": "#ffffff", "subtext": "#a0a0a0"}
-        else:
-            return {"bg": "#f5f5f5", "card": "#ffffff", "text": "#000000", "subtext": "#666666"}
+    adhkar_data = {
+        1: [
+            {"text": "أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ وَالْحَمْدُ لِلَّهِ لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ", "count": 1, "benefit": "ذكر الصباح"},
+            {"text": "اللَّهُمَّ بِكَ أَصْبَحْنَا وَبِكَ أَمْسَيْنَا وَبِكَ نَحْيَا وَبِكَ نَمُوتُ وَإِلَيْكَ النُّشُورُ", "count": 1, "benefit": "رواه الترمذي"},
+            {"text": "اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ خَلَقْتَنِي وَأَنَا عَبْدُكَ", "count": 1, "benefit": "سيد الاستغفار"},
+            {"text": "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ", "count": 100, "benefit": "مائة مرة"},
+            {"text": "لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ", "count": 10, "benefit": "عشر مرات"},
+            {"text": "أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ", "count": 3, "benefit": "ثلاث مرات"},
+            {"text": "بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ فِي الْأَرْضِ وَلَا فِي السَّمَاءِ وَهُوَ السَّمِيعُ الْعَلِيمُ", "count": 3, "benefit": "ثلاث مرات"},
+        ],
+        2: [
+            {"text": "أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ وَالْحَمْدُ لِلَّهِ لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ", "count": 1, "benefit": "ذكر المساء"},
+            {"text": "اللَّهُمَّ بِكَ أَمْسَيْنَا وَبِكَ أَصْبَحْنَا وَبِكَ نَحْيَا وَبِكَ نَمُوتُ وَإِلَيْكَ الْمَصِيرُ", "count": 1, "benefit": "رواه الترمذي"},
+            {"text": "أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ", "count": 3, "benefit": "ثلاث مرات"},
+            {"text": "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ", "count": 100, "benefit": "مائة مرة"},
+        ],
+        3: [
+            {"text": "أَسْتَغْفِرُ اللَّهَ أَسْتَغْفِرُ اللَّهَ أَسْتَغْفِرُ اللَّهَ", "count": 3, "benefit": "بعد الصلاة"},
+            {"text": "اللَّهُمَّ أَنْتَ السَّلَامُ وَمِنْكَ السَّلَامُ تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ", "count": 1, "benefit": "بعد الصلاة"},
+            {"text": "سُبْحَانَ اللَّهِ", "count": 33, "benefit": "بعد الصلاة"},
+            {"text": "الْحَمْدُ لِلَّهِ", "count": 33, "benefit": "بعد الصلاة"},
+            {"text": "اللَّهُ أَكْبَرُ", "count": 33, "benefit": "بعد الصلاة"},
+        ],
+        4: [
+            {"text": "بِاسْمِكَ اللَّهُمَّ أَمُوتُ وَأَحْيَا", "count": 1, "benefit": "عند النوم"},
+            {"text": "اللَّهُمَّ قِنِي عَذَابَكَ يَوْمَ تَبْعَثُ عِبَادَكَ", "count": 1, "benefit": "عند النوم"},
+            {"text": "سُبْحَانَ اللَّهِ", "count": 33, "benefit": "قبل النوم"},
+            {"text": "الْحَمْدُ لِلَّهِ", "count": 33, "benefit": "قبل النوم"},
+            {"text": "اللَّهُ أَكْبَرُ", "count": 34, "benefit": "قبل النوم"},
+        ],
+        5: [
+            {"text": "لَا إِلَهَ إِلَّا اللَّهُ", "count": 100, "benefit": "أفضل الذكر"},
+            {"text": "سُبْحَانَ اللَّهِ وَالْحَمْدُ لِلَّهِ وَلَا إِلَهَ إِلَّا اللَّهُ وَاللَّهُ أَكْبَرُ", "count": 100, "benefit": "الباقيات الصالحات"},
+            {"text": "لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ", "count": 100, "benefit": "كنز من الجنة"},
+            {"text": "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ سُبْحَانَ اللَّهِ الْعَظِيمِ", "count": 100, "benefit": "ثقيلتان في الميزان"},
+            {"text": "اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ", "count": 100, "benefit": "الصلاة على النبي"},
+        ],
+    }
+    
+    tasbih_data = [
+        {"id": 1, "name": "سُبْحَانَ اللَّهِ", "count": 0, "target": 33},
+        {"id": 2, "name": "الْحَمْدُ لِلَّهِ", "count": 0, "target": 33},
+        {"id": 3, "name": "اللَّهُ أَكْبَرُ", "count": 0, "target": 34},
+        {"id": 4, "name": "لَا إِلَهَ إِلَّا اللَّهُ", "count": 0, "target": 100},
+        {"id": 5, "name": "أَسْتَغْفِرُ اللَّهَ", "count": 0, "target": 100},
+    ]
+    
+    # حالة العدادات
+    adhkar_counters = {}
+    tasbih_counters = {t["id"]: t["count"] for t in tasbih_data}
     
     # ==================== الصفحة الرئيسية ====================
     
-    def build_home():
-        colors = get_colors()
+    def show_home():
         
-        # جلب الفئات
-        categories = db_query("SELECT * FROM categories")
+        def open_category(e):
+            cat_id = e.control.data["id"]
+            cat_name = e.control.data["name"]
+            cat_color = e.control.data["color"]
+            show_adhkar(cat_id, cat_name, cat_color)
         
-        # جلب التسبيحات
-        tasbihat = db_query("SELECT * FROM tasbih")
-        
-        def open_category(cat_id, cat_name, cat_color):
-            build_adhkar_page(cat_id, cat_name, cat_color)
-        
-        def open_tasbih(t_id, t_name, t_count, t_target):
-            build_tasbih_page(t_id, t_name, t_count, t_target)
+        def open_tasbih(e):
+            t_data = e.control.data
+            show_tasbih_page(t_data)
         
         def open_settings(e):
-            build_settings()
+            show_settings()
         
         # بناء بطاقات الفئات
         cat_cards = []
-        for cat in categories:
-            cat_id, cat_name, cat_icon, cat_color = cat
-            
+        for cat in categories_data:
             card = ft.Container(
                 content=ft.Column(
                     [
                         ft.Container(
-                            content=ft.Icon(cat_icon, size=32, color="#ffffff"),
-                            width=60,
-                            height=60,
-                            border_radius=30,
-                            bgcolor=cat_color,
+                            content=ft.Icon(cat["icon"], size=30, color="#ffffff"),
+                            width=55,
+                            height=55,
+                            border_radius=27,
+                            bgcolor=cat["color"],
                             alignment=ft.alignment.center,
                         ),
-                        ft.Text(cat_name, size=font_size-2, color=colors["text"], 
-                               text_align=ft.TextAlign.CENTER, weight=ft.FontWeight.BOLD),
+                        ft.Text(
+                            cat["name"],
+                            size=14,
+                            color="#333333",
+                            text_align=ft.TextAlign.CENTER,
+                            weight=ft.FontWeight.BOLD,
+                        ),
                     ],
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     alignment=ft.MainAxisAlignment.CENTER,
                     spacing=8,
                 ),
-                width=150,
-                height=130,
+                width=140,
+                height=120,
                 border_radius=12,
-                bgcolor=colors["card"],
+                bgcolor="#ffffff",
                 padding=10,
-                on_click=lambda e, cid=cat_id, cname=cat_name, ccol=cat_color: open_category(cid, cname, ccol),
+                data=cat,
+                on_click=open_category,
             )
             cat_cards.append(card)
         
-        # بناء قائمة التسبيحات
+        # بناء عناصر التسبيح
         tasbih_items = []
-        for t in tasbihat:
-            t_id, t_name, t_count, t_target = t
-            
+        for t in tasbih_data:
             item = ft.Container(
                 content=ft.Row(
                     [
                         ft.Container(
-                            content=ft.Text(str(t_count), size=14, color=GREEN, weight=ft.FontWeight.BOLD),
-                            width=45,
-                            height=45,
-                            border_radius=22,
-                            bgcolor=colors["card"],
+                            content=ft.Text(
+                                str(tasbih_counters.get(t["id"], 0)),
+                                size=14,
+                                color=GREEN,
+                                weight=ft.FontWeight.BOLD,
+                            ),
+                            width=42,
+                            height=42,
+                            border_radius=21,
+                            bgcolor="#e8f5e9",
                             alignment=ft.alignment.center,
-                            border=ft.border.all(2, GREEN),
                         ),
                         ft.Column(
                             [
-                                ft.Text(t_name, size=font_size-2, color=colors["text"], weight=ft.FontWeight.W_500),
-                                ft.Text(f"{t_count} / {t_target}", size=12, color=colors["subtext"]),
+                                ft.Text(t["name"], size=14, color="#333333", weight=ft.FontWeight.W_500),
+                                ft.Text(f"{tasbih_counters.get(t['id'], 0)} / {t['target']}", size=11, color="#888888"),
                             ],
                             spacing=2,
                             expand=True,
                         ),
-                        ft.Icon("chevron_left", color=colors["subtext"], size=20),
+                        ft.Icon("chevron_left", color="#888888", size=18),
                     ],
-                    spacing=12,
+                    spacing=10,
                 ),
-                padding=12,
-                border_radius=10,
-                bgcolor=colors["card"],
-                margin=ft.margin.only(bottom=8, left=12, right=12),
-                on_click=lambda e, tid=t_id, tname=t_name, tc=t_count, tt=t_target: open_tasbih(tid, tname, tc, tt),
+                padding=10,
+                border_radius=8,
+                bgcolor="#ffffff",
+                margin=ft.margin.only(bottom=6, left=10, right=10),
+                data=t,
+                on_click=open_tasbih,
             )
             tasbih_items.append(item)
         
-        # تجميع الصفحة
         page.controls.clear()
-        page.bgcolor = colors["bg"]
-        
         page.add(
             ft.Column(
                 [
@@ -259,60 +174,99 @@ def main(page: ft.Page):
                         content=ft.Row(
                             [
                                 ft.Container(width=40),
-                                ft.Text("حصن المسلم", size=20, color="#ffffff", weight=ft.FontWeight.BOLD, expand=True, text_align=ft.TextAlign.CENTER),
-                                ft.IconButton(icon="settings", icon_color="#ffffff", icon_size=22, on_click=open_settings),
+                                ft.Text(
+                                    "حصن المسلم",
+                                    size=18,
+                                    color="#ffffff",
+                                    weight=ft.FontWeight.BOLD,
+                                    expand=True,
+                                    text_align=ft.TextAlign.CENTER,
+                                ),
+                                ft.IconButton(
+                                    icon="settings",
+                                    icon_color="#ffffff",
+                                    icon_size=20,
+                                    on_click=open_settings,
+                                ),
                             ],
                         ),
-                        padding=12,
+                        padding=10,
                         bgcolor=GREEN,
                     ),
                     
                     # المحتوى
-                    ft.Column(
-                        [
-                            # البطاقة الترحيبية
-                            ft.Container(
-                                content=ft.Column(
-                                    [
-                                        ft.Text("بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ", size=font_size+2, color="#ffffff", weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
-                                        ft.Text("أذكار من الكتاب والسنة", size=font_size-2, color="#e0e0e0", text_align=ft.TextAlign.CENTER),
-                                    ],
-                                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                                    spacing=6,
+                    ft.Container(
+                        content=ft.Column(
+                            [
+                                # البطاقة الترحيبية
+                                ft.Container(
+                                    content=ft.Column(
+                                        [
+                                            ft.Text(
+                                                "بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ",
+                                                size=16,
+                                                color="#ffffff",
+                                                weight=ft.FontWeight.BOLD,
+                                                text_align=ft.TextAlign.CENTER,
+                                            ),
+                                            ft.Text(
+                                                "أذكار من الكتاب والسنة",
+                                                size=12,
+                                                color="#e0e0e0",
+                                                text_align=ft.TextAlign.CENTER,
+                                            ),
+                                        ],
+                                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                                        spacing=4,
+                                    ),
+                                    padding=16,
+                                    margin=10,
+                                    border_radius=10,
+                                    bgcolor=GREEN,
                                 ),
-                                padding=20,
-                                margin=12,
-                                border_radius=12,
-                                bgcolor=GREEN,
-                            ),
-                            
-                            # عنوان الأقسام
-                            ft.Container(
-                                content=ft.Text("أقسام الأذكار", size=font_size, color=colors["text"], weight=ft.FontWeight.BOLD),
-                                padding=ft.padding.only(right=16, top=8, bottom=8),
-                            ),
-                            
-                            # شبكة الفئات
-                            ft.Row(
-                                controls=cat_cards,
-                                wrap=True,
-                                spacing=10,
-                                run_spacing=10,
-                                alignment=ft.MainAxisAlignment.CENTER,
-                            ),
-                            
-                            # عنوان التسبيح
-                            ft.Container(
-                                content=ft.Text("التسبيح الإلكتروني", size=font_size, color=colors["text"], weight=ft.FontWeight.BOLD),
-                                padding=ft.padding.only(right=16, top=16, bottom=8),
-                            ),
-                            
-                            # قائمة التسبيحات
-                            ft.Column(controls=tasbih_items, spacing=0),
-                            
-                            ft.Container(height=20),
-                        ],
-                        scroll=ft.ScrollMode.AUTO,
+                                
+                                # عنوان الأقسام
+                                ft.Container(
+                                    content=ft.Text(
+                                        "أقسام الأذكار",
+                                        size=15,
+                                        color="#333333",
+                                        weight=ft.FontWeight.BOLD,
+                                    ),
+                                    padding=ft.padding.only(right=12, top=6, bottom=6),
+                                ),
+                                
+                                # شبكة الفئات
+                                ft.Container(
+                                    content=ft.Row(
+                                        controls=cat_cards,
+                                        wrap=True,
+                                        spacing=8,
+                                        run_spacing=8,
+                                        alignment=ft.MainAxisAlignment.CENTER,
+                                    ),
+                                    padding=ft.padding.symmetric(horizontal=8),
+                                ),
+                                
+                                # عنوان التسبيح
+                                ft.Container(
+                                    content=ft.Text(
+                                        "التسبيح الإلكتروني",
+                                        size=15,
+                                        color="#333333",
+                                        weight=ft.FontWeight.BOLD,
+                                    ),
+                                    padding=ft.padding.only(right=12, top=12, bottom=6),
+                                ),
+                                
+                                # قائمة التسبيحات
+                                ft.Column(controls=tasbih_items, spacing=0),
+                                
+                                ft.Container(height=16),
+                            ],
+                            scroll=ft.ScrollMode.AUTO,
+                            spacing=0,
+                        ),
                         expand=True,
                     ),
                 ],
@@ -324,87 +278,96 @@ def main(page: ft.Page):
     
     # ==================== صفحة الأذكار ====================
     
-    def build_adhkar_page(cat_id, cat_name, cat_color):
-        colors = get_colors()
+    def show_adhkar(cat_id, cat_name, cat_color):
         
-        adhkar = db_query("SELECT * FROM adhkar WHERE cat_id=?", (cat_id,))
+        adhkar_list = adhkar_data.get(cat_id, [])
+        
+        # تهيئة العدادات إذا لم تكن موجودة
+        if cat_id not in adhkar_counters:
+            adhkar_counters[cat_id] = [0] * len(adhkar_list)
         
         def go_back(e):
-            build_home()
+            show_home()
         
         def reset_all(e):
-            db_query("UPDATE adhkar SET current=0 WHERE cat_id=?", (cat_id,), fetch=False)
-            build_adhkar_page(cat_id, cat_name, cat_color)
+            adhkar_counters[cat_id] = [0] * len(adhkar_list)
+            show_adhkar(cat_id, cat_name, cat_color)
         
         # بناء بطاقات الأذكار
         cards = []
-        for dhikr in adhkar:
-            d_id, d_cat, d_text, d_total, d_current, d_benefit = dhikr
-            remaining = max(0, d_total - d_current)
+        for idx, dhikr in enumerate(adhkar_list):
+            current = adhkar_counters[cat_id][idx]
+            remaining = max(0, dhikr["count"] - current)
             done = remaining == 0
             
-            count_btn = ft.Container(
-                content=ft.Text(
-                    "✓" if done else str(remaining),
-                    size=20,
-                    color="#ffffff",
-                    weight=ft.FontWeight.BOLD,
-                ),
-                width=50,
-                height=50,
-                border_radius=25,
-                bgcolor="#22c55e" if done else cat_color,
-                alignment=ft.alignment.center,
-                data={"id": d_id, "total": d_total, "current": d_current},
+            btn_text = ft.Text(
+                "✓" if done else str(remaining),
+                size=18,
+                color="#ffffff",
+                weight=ft.FontWeight.BOLD,
             )
             
-            def on_tap(e):
-                data = e.control.data
-                if data["current"] < data["total"]:
-                    data["current"] += 1
-                    db_query("UPDATE adhkar SET current=? WHERE id=?", (data["current"], data["id"]), fetch=False)
-                    rem = data["total"] - data["current"]
-                    if rem == 0:
-                        e.control.bgcolor = "#22c55e"
-                        e.control.content = ft.Text("✓", size=24, color="#ffffff", weight=ft.FontWeight.BOLD)
-                    else:
-                        e.control.content = ft.Text(str(rem), size=20, color="#ffffff", weight=ft.FontWeight.BOLD)
-                    page.update()
+            count_btn = ft.Container(
+                content=btn_text,
+                width=48,
+                height=48,
+                border_radius=24,
+                bgcolor="#22c55e" if done else cat_color,
+                alignment=ft.alignment.center,
+                data={"idx": idx, "total": dhikr["count"]},
+            )
             
-            count_btn.on_click = on_tap
+            def make_tap_handler(index, total, button, text_widget):
+                def handler(e):
+                    curr = adhkar_counters[cat_id][index]
+                    if curr < total:
+                        adhkar_counters[cat_id][index] = curr + 1
+                        rem = total - adhkar_counters[cat_id][index]
+                        if rem == 0:
+                            button.bgcolor = "#22c55e"
+                            text_widget.value = "✓"
+                        else:
+                            text_widget.value = str(rem)
+                        page.update()
+                return handler
+            
+            count_btn.on_click = make_tap_handler(idx, dhikr["count"], count_btn, btn_text)
             
             card = ft.Container(
                 content=ft.Column(
                     [
-                        ft.Text(d_text, size=font_size, color=colors["text"], text_align=ft.TextAlign.CENTER),
-                        ft.Divider(color=colors["subtext"]),
+                        ft.Text(
+                            dhikr["text"],
+                            size=15,
+                            color="#333333",
+                            text_align=ft.TextAlign.CENTER,
+                        ),
+                        ft.Divider(color="#e0e0e0"),
                         ft.Row(
                             [
                                 count_btn,
                                 ft.Column(
                                     [
-                                        ft.Text(f"العدد: {d_total}", size=font_size-4, color=colors["subtext"]),
-                                        ft.Text(d_benefit or "", size=font_size-5, color=cat_color),
+                                        ft.Text(f"العدد: {dhikr['count']}", size=12, color="#888888"),
+                                        ft.Text(dhikr["benefit"], size=11, color=cat_color),
                                     ],
                                     spacing=2,
                                 ),
                             ],
                             alignment=ft.MainAxisAlignment.CENTER,
-                            spacing=16,
+                            spacing=14,
                         ),
                     ],
-                    spacing=10,
+                    spacing=8,
                 ),
-                padding=16,
-                margin=ft.margin.only(bottom=10, left=12, right=12),
-                border_radius=12,
-                bgcolor=colors["card"],
+                padding=14,
+                margin=ft.margin.only(bottom=8, left=10, right=10),
+                border_radius=10,
+                bgcolor="#ffffff",
             )
             cards.append(card)
         
         page.controls.clear()
-        page.bgcolor = colors["bg"]
-        
         page.add(
             ft.Column(
                 [
@@ -412,12 +375,24 @@ def main(page: ft.Page):
                     ft.Container(
                         content=ft.Row(
                             [
-                                ft.IconButton(icon="arrow_forward", icon_color="#ffffff", icon_size=22, on_click=go_back),
-                                ft.Text(cat_name, size=18, color="#ffffff", weight=ft.FontWeight.BOLD, expand=True, text_align=ft.TextAlign.CENTER),
+                                ft.IconButton(
+                                    icon="arrow_forward",
+                                    icon_color="#ffffff",
+                                    icon_size=20,
+                                    on_click=go_back,
+                                ),
+                                ft.Text(
+                                    cat_name,
+                                    size=16,
+                                    color="#ffffff",
+                                    weight=ft.FontWeight.BOLD,
+                                    expand=True,
+                                    text_align=ft.TextAlign.CENTER,
+                                ),
                                 ft.Container(width=40),
                             ],
                         ),
-                        padding=12,
+                        padding=10,
                         bgcolor=cat_color,
                     ),
                     
@@ -425,18 +400,25 @@ def main(page: ft.Page):
                     ft.Container(
                         content=ft.Row(
                             [
-                                ft.ElevatedButton("إعادة تعيين", icon="refresh", on_click=reset_all, bgcolor=cat_color, color="#ffffff"),
-                                ft.Text(f"{len(adhkar)} ذكر", size=font_size-3, color=colors["subtext"]),
+                                ft.TextButton(
+                                    text="إعادة تعيين",
+                                    icon="refresh",
+                                    on_click=reset_all,
+                                ),
+                                ft.Text(f"{len(adhkar_list)} ذكر", size=12, color="#888888"),
                             ],
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         ),
-                        padding=12,
+                        padding=10,
                     ),
                     
                     # قائمة الأذكار
-                    ft.Column(
-                        controls=cards,
-                        scroll=ft.ScrollMode.AUTO,
+                    ft.Container(
+                        content=ft.Column(
+                            controls=cards,
+                            scroll=ft.ScrollMode.AUTO,
+                            spacing=0,
+                        ),
                         expand=True,
                     ),
                 ],
@@ -448,43 +430,45 @@ def main(page: ft.Page):
     
     # ==================== صفحة التسبيح ====================
     
-    def build_tasbih_page(t_id, t_name, t_count, t_target):
-        colors = get_colors()
-        count = t_count
+    def show_tasbih_page(t_data):
+        t_id = t_data["id"]
+        t_name = t_data["name"]
+        t_target = t_data["target"]
         
-        def go_back(e):
-            build_home()
+        count_val = tasbih_counters.get(t_id, 0)
         
-        count_text = ft.Text(str(count), size=60, color=GREEN, weight=ft.FontWeight.BOLD)
-        
-        progress = ft.ProgressRing(
-            value=min(count/t_target, 1.0) if t_target > 0 else 0,
-            width=180,
-            height=180,
-            stroke_width=10,
+        count_text = ft.Text(
+            str(count_val),
+            size=50,
             color=GREEN,
-            bgcolor=colors["subtext"],
+            weight=ft.FontWeight.BOLD,
         )
         
+        progress = ft.ProgressRing(
+            value=min(count_val / t_target, 1.0) if t_target > 0 else 0,
+            width=160,
+            height=160,
+            stroke_width=8,
+            color=GREEN,
+            bgcolor="#e0e0e0",
+        )
+        
+        def go_back(e):
+            show_home()
+        
         def increment(e):
-            nonlocal count
-            count += 1
-            count_text.value = str(count)
-            progress.value = min(count/t_target, 1.0) if t_target > 0 else 0
-            db_query("UPDATE tasbih SET count=? WHERE id=?", (count, t_id), fetch=False)
+            tasbih_counters[t_id] = tasbih_counters.get(t_id, 0) + 1
+            count_text.value = str(tasbih_counters[t_id])
+            progress.value = min(tasbih_counters[t_id] / t_target, 1.0) if t_target > 0 else 0
             page.update()
         
         def reset(e):
-            nonlocal count
-            count = 0
+            tasbih_counters[t_id] = 0
             count_text.value = "0"
             progress.value = 0
-            db_query("UPDATE tasbih SET count=0 WHERE id=?", (t_id,), fetch=False)
             page.update()
         
         page.controls.clear()
-        page.bgcolor = colors["bg"]
-        
         page.add(
             ft.Column(
                 [
@@ -492,12 +476,24 @@ def main(page: ft.Page):
                     ft.Container(
                         content=ft.Row(
                             [
-                                ft.IconButton(icon="arrow_forward", icon_color="#ffffff", icon_size=22, on_click=go_back),
-                                ft.Text("التسبيح", size=18, color="#ffffff", weight=ft.FontWeight.BOLD, expand=True, text_align=ft.TextAlign.CENTER),
+                                ft.IconButton(
+                                    icon="arrow_forward",
+                                    icon_color="#ffffff",
+                                    icon_size=20,
+                                    on_click=go_back,
+                                ),
+                                ft.Text(
+                                    "التسبيح",
+                                    size=16,
+                                    color="#ffffff",
+                                    weight=ft.FontWeight.BOLD,
+                                    expand=True,
+                                    text_align=ft.TextAlign.CENTER,
+                                ),
                                 ft.Container(width=40),
                             ],
                         ),
-                        padding=12,
+                        padding=10,
                         bgcolor=GREEN,
                     ),
                     
@@ -506,11 +502,19 @@ def main(page: ft.Page):
                         content=ft.Column(
                             [
                                 ft.Container(height=20),
-                                ft.Text(t_name, size=font_size+6, color=colors["text"], weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
+                                
+                                ft.Text(
+                                    t_name,
+                                    size=22,
+                                    color="#333333",
+                                    weight=ft.FontWeight.BOLD,
+                                    text_align=ft.TextAlign.CENTER,
+                                ),
+                                
                                 ft.Container(height=30),
                                 
                                 # العداد الدائري
-                                ft.Container(
+                                ft.GestureDetector(
                                     content=ft.Stack(
                                         [
                                             progress,
@@ -518,27 +522,43 @@ def main(page: ft.Page):
                                                 content=ft.Column(
                                                     [
                                                         count_text,
-                                                        ft.Text(f"الهدف: {t_target}", size=14, color=colors["subtext"]),
+                                                        ft.Text(
+                                                            f"الهدف: {t_target}",
+                                                            size=12,
+                                                            color="#888888",
+                                                        ),
                                                     ],
                                                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                                                     alignment=ft.MainAxisAlignment.CENTER,
                                                 ),
-                                                width=180,
-                                                height=180,
+                                                width=160,
+                                                height=160,
                                                 alignment=ft.alignment.center,
                                             ),
                                         ],
-                                        width=180,
-                                        height=180,
+                                        width=160,
+                                        height=160,
                                     ),
-                                    on_click=increment,
+                                    on_tap=increment,
                                 ),
                                 
-                                ft.Container(height=20),
-                                ft.Text("اضغط على الدائرة للتسبيح", size=14, color=colors["subtext"]),
+                                ft.Container(height=16),
+                                
+                                ft.Text(
+                                    "اضغط على الدائرة للتسبيح",
+                                    size=13,
+                                    color="#888888",
+                                ),
+                                
                                 ft.Container(height=30),
                                 
-                                ft.ElevatedButton("إعادة تعيين", icon="refresh", on_click=reset, bgcolor="#ef4444", color="#ffffff"),
+                                ft.ElevatedButton(
+                                    text="إعادة تعيين",
+                                    icon="refresh",
+                                    on_click=reset,
+                                    bgcolor="#ef4444",
+                                    color="#ffffff",
+                                ),
                             ],
                             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                         ),
@@ -553,33 +573,29 @@ def main(page: ft.Page):
     
     # ==================== صفحة الإعدادات ====================
     
-    def build_settings():
-        nonlocal dark_mode, font_size
-        colors = get_colors()
+    def show_settings():
         
         def go_back(e):
-            build_home()
+            show_home()
         
-        def toggle_dark(e):
-            nonlocal dark_mode
-            dark_mode = e.control.value
-            db_query("UPDATE settings SET value=? WHERE key='dark_mode'", ("true" if dark_mode else "false",), fetch=False)
-            page.theme_mode = ft.ThemeMode.DARK if dark_mode else ft.ThemeMode.LIGHT
-            build_settings()
+        def toggle_theme(e):
+            if page.theme_mode == ft.ThemeMode.LIGHT:
+                page.theme_mode = ft.ThemeMode.DARK
+                page.bgcolor = "#1e1e2e"
+            else:
+                page.theme_mode = ft.ThemeMode.LIGHT
+                page.bgcolor = "#f5f5f5"
+            show_settings()
         
-        def change_font(e):
-            nonlocal font_size
-            font_size = int(e.control.value)
-            db_query("UPDATE settings SET value=? WHERE key='font_size'", (str(font_size),), fetch=False)
-            preview.value = f"معاينة الخط: {font_size}"
-            preview.size = font_size
-            page.update()
-        
-        preview = ft.Text(f"معاينة الخط: {font_size}", size=font_size, color=colors["text"])
+        is_dark = page.theme_mode == ft.ThemeMode.DARK
+        colors = {
+            "bg": "#1e1e2e" if is_dark else "#f5f5f5",
+            "card": "#2d2d3f" if is_dark else "#ffffff",
+            "text": "#ffffff" if is_dark else "#333333",
+            "subtext": "#a0a0a0" if is_dark else "#888888",
+        }
         
         page.controls.clear()
-        page.bgcolor = colors["bg"]
-        
         page.add(
             ft.Column(
                 [
@@ -587,12 +603,24 @@ def main(page: ft.Page):
                     ft.Container(
                         content=ft.Row(
                             [
-                                ft.IconButton(icon="arrow_forward", icon_color="#ffffff", icon_size=22, on_click=go_back),
-                                ft.Text("الإعدادات", size=18, color="#ffffff", weight=ft.FontWeight.BOLD, expand=True, text_align=ft.TextAlign.CENTER),
+                                ft.IconButton(
+                                    icon="arrow_forward",
+                                    icon_color="#ffffff",
+                                    icon_size=20,
+                                    on_click=go_back,
+                                ),
+                                ft.Text(
+                                    "الإعدادات",
+                                    size=16,
+                                    color="#ffffff",
+                                    weight=ft.FontWeight.BOLD,
+                                    expand=True,
+                                    text_align=ft.TextAlign.CENTER,
+                                ),
                                 ft.Container(width=40),
                             ],
                         ),
-                        padding=12,
+                        padding=10,
                         bgcolor=GREEN,
                     ),
                     
@@ -603,47 +631,58 @@ def main(page: ft.Page):
                                 ft.Container(
                                     content=ft.Row(
                                         [
-                                            ft.Text("الوضع الداكن", size=font_size, color=colors["text"]),
-                                            ft.Switch(value=dark_mode, active_color=GREEN, on_change=toggle_dark),
+                                            ft.Icon(
+                                                "dark_mode" if is_dark else "light_mode",
+                                                color=GREEN,
+                                                size=22,
+                                            ),
+                                            ft.Text(
+                                                "الوضع الداكن",
+                                                size=15,
+                                                color=colors["text"],
+                                            ),
+                                            ft.Container(expand=True),
+                                            ft.Switch(
+                                                value=is_dark,
+                                                active_color=GREEN,
+                                                on_change=toggle_theme,
+                                            ),
                                         ],
-                                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                                     ),
-                                    padding=16,
-                                    border_radius=10,
+                                    padding=14,
+                                    border_radius=8,
                                     bgcolor=colors["card"],
                                 ),
                                 
-                                ft.Container(height=12),
+                                ft.Container(height=20),
                                 
-                                # حجم الخط
+                                # معلومات التطبيق
                                 ft.Container(
                                     content=ft.Column(
                                         [
-                                            ft.Text("حجم الخط", size=font_size, color=colors["text"]),
-                                            ft.Slider(min=14, max=24, value=font_size, divisions=10, active_color=GREEN, on_change=change_font),
-                                            preview,
-                                        ],
-                                        spacing=8,
-                                    ),
-                                    padding=16,
-                                    border_radius=10,
-                                    bgcolor=colors["card"],
-                                ),
-                                
-                                ft.Container(height=24),
-                                
-                                # معلومات
-                                ft.Container(
-                                    content=ft.Column(
-                                        [
-                                            ft.Text("حصن المسلم", size=font_size+2, color=colors["text"], weight=ft.FontWeight.BOLD),
-                                            ft.Text("الإصدار 1.0", size=14, color=colors["subtext"]),
+                                            ft.Icon("menu_book", color=GREEN, size=40),
+                                            ft.Text(
+                                                "حصن المسلم",
+                                                size=18,
+                                                color=colors["text"],
+                                                weight=ft.FontWeight.BOLD,
+                                            ),
+                                            ft.Text(
+                                                "الإصدار 1.0",
+                                                size=12,
+                                                color=colors["subtext"],
+                                            ),
+                                            ft.Text(
+                                                "أذكار من الكتاب والسنة",
+                                                size=12,
+                                                color=colors["subtext"],
+                                            ),
                                         ],
                                         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                                         spacing=4,
                                     ),
                                     padding=20,
-                                    border_radius=10,
+                                    border_radius=8,
                                     bgcolor=colors["card"],
                                     alignment=ft.alignment.center,
                                 ),
@@ -660,7 +699,7 @@ def main(page: ft.Page):
         page.update()
     
     # بدء التطبيق
-    build_home()
+    show_home()
 
-# تشغيل
+
 ft.app(target=main)
