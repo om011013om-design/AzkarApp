@@ -6,20 +6,20 @@ import os
 # 1. إعدادات البيانات والخط
 # ==========================================
 
-# اسم ملف الخط كما رفعته (بصيغة OTF)
 FONT_FILE_NAME = "myfont.otf"
 FONT_NAME_INTERNAL = "ThuluthFont"
 
+# تم تصحيح الأيقونات هنا لتكون نصوصاً (Strings) بدلاً من أكواد
 DEFAULT_CATEGORIES = {
-    "morning": {"name": "أذكار الصباح", "icon": ft.icons.WB_SUNNY, "color": "#f59e0b"},
-    "evening": {"name": "أذكار المساء", "icon": ft.icons.NIGHTS_STAY, "color": "#6366f1"},
-    "prayer": {"name": "أذكار الصلاة", "icon": ft.icons.MOSQUE, "color": "#10b981"},
-    "sleep": {"name": "أذكار النوم", "icon": ft.icons.BEDTIME, "color": "#8b5cf6"},
-    "tasbih": {"name": "التسبيح العام", "icon": ft.icons.FAVORITE, "color": "#ef4444"},
-    "waking": {"name": "أذكار الاستيقاظ", "icon": ft.icons.ALARM, "color": "#14b8a6"},
-    "food": {"name": "أذكار الطعام", "icon": ft.icons.RESTAURANT, "color": "#f97316"},
-    "travel": {"name": "أذكار السفر", "icon": ft.icons.FLIGHT, "color": "#0ea5e9"},
-    "quran": {"name": "أدعية قرآنية", "icon": ft.icons.MENU_BOOK, "color": "#10b981"}
+    "morning": {"name": "أذكار الصباح", "icon": "wb_sunny", "color": "#f59e0b"},
+    "evening": {"name": "أذكار المساء", "icon": "nights_stay", "color": "#6366f1"},
+    "prayer": {"name": "أذكار الصلاة", "icon": "mosque", "color": "#10b981"},
+    "sleep": {"name": "أذكار النوم", "icon": "bedtime", "color": "#8b5cf6"},
+    "tasbih": {"name": "التسبيح العام", "icon": "favorite", "color": "#ef4444"},
+    "waking": {"name": "أذكار الاستيقاظ", "icon": "alarm", "color": "#14b8a6"},
+    "food": {"name": "أذكار الطعام", "icon": "restaurant", "color": "#f97316"},
+    "travel": {"name": "أذكار السفر", "icon": "flight", "color": "#0ea5e9"},
+    "quran": {"name": "أدعية قرآنية", "icon": "menu_book", "color": "#10b981"}
 }
 
 DEFAULT_AZKAR = {
@@ -82,7 +82,7 @@ class Database:
 
     def init_data(self):
         cursor = self.conn.cursor()
-        cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('font_size', '28')") # كبرنا الخط الافتراضي عشان الثلث يبان
+        cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('font_size', '28')")
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('dark_mode', '0')")
         cursor.execute("INSERT OR IGNORE INTO tasbih_stats (total) VALUES (0)")
         self.conn.commit()
@@ -163,7 +163,7 @@ def main(page: ft.Page):
                 ft.Container(
                     content=ft.Column([
                         ft.Icon(cat_data['icon'], size=40, color="white"),
-                        ft.Text(cat_data['name'], size=20, weight="bold", color="white") # تكبير بسيط
+                        ft.Text(cat_data['name'], size=20, weight="bold", color="white")
                     ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                     bgcolor=cat_data['color'],
                     border_radius=15,
@@ -191,7 +191,7 @@ def main(page: ft.Page):
                     bgcolor="#10b981",
                     color="white",
                     actions=[
-                        ft.IconButton(ft.icons.BRIGHTNESS_6, on_click=toggle_theme, tooltip="الوضع الليلي"),
+                        ft.IconButton("brightness_6", on_click=toggle_theme, tooltip="الوضع الليلي"),
                     ]
                 ),
                 ft.Container(
@@ -199,7 +199,7 @@ def main(page: ft.Page):
                     padding=20,
                 ),
                 ft.FloatingActionButton(
-                    icon=ft.icons.FINGERPRINT,
+                    icon="fingerprint",
                     bgcolor="#10b981",
                     text="المسبحة",
                     on_click=lambda _: page.go("/tasbih")
@@ -274,7 +274,7 @@ def main(page: ft.Page):
         tasbih_counter_val = 0
         total_global = db.get_tasbih_total()
         
-        counter_display = ft.Text("0", size=100, weight="bold", color="#10b981") # تكبير العداد
+        counter_display = ft.Text("0", size=100, weight="bold", color="#10b981")
         total_display = ft.Text(f"مجموع تسبيحاتك الكلي: {total_global}", size=18, color="grey")
 
         def click_tasbih(e):
@@ -300,7 +300,7 @@ def main(page: ft.Page):
                     title=ft.Text("المسبحة الإلكترونية"), 
                     bgcolor="#10b981", 
                     color="white",
-                    leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=save_and_exit)
+                    leading=ft.IconButton("arrow_back", on_click=save_and_exit)
                 ),
                 ft.Container(
                     content=ft.Column([
